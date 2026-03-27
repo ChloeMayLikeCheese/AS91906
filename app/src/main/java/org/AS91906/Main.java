@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import org.jline.keymap.BindingReader;
 import org.jline.keymap.KeyMap;
@@ -27,10 +28,7 @@ public class Main {
     public static void main(String[] args) throws IOException, InterruptedException {
         String topBar = "Open an account (o)\n";
         accounts.mkdir();
-
-        // System.out.println(Arrays.asList(accounts.listFiles()));
-        // System.exit(0);
-        // accountsList.addAll(Arrays.asList(accounts.listFiles()));
+        updateAccounts();
 
         try (Terminal terminal = TerminalBuilder.builder()
                 .name("KawaiiBank Teller")
@@ -45,9 +43,6 @@ public class Main {
             LineReader lineReader = LineReaderBuilder.builder()
                     .terminal(terminal)
                     .build();
-            // accountsList.addAll(Arrays.asList(accounts.listFiles()));
-            // System.out.println(accountsList.getLast());
-            // System.exit(0);
             terminal.puts(Capability.clear_screen);
             terminal.writer().println(topBar);
             terminal.writer().flush();
@@ -61,6 +56,9 @@ public class Main {
                     switch (op) {
                         case OPEN -> {
                             if (!accountsList.isEmpty()) {
+                                terminal.writer().println("Accounts: \n" + accountsList);
+                                terminal.writer().flush();
+                                String in = readInput(terminal, lineReader, "Press enter to continue");
                             } else {
                                 terminal.writer().println();
                                 String in = readInput(terminal, lineReader,
@@ -79,16 +77,28 @@ public class Main {
                         case CLEAR_ACCOUNTS -> {
                             deleteDir(accounts);
                         }
-                        // case CREATE -> {
-                        // String in = readInput(terminal, lineReader, "Create an account?(y/N) ");
-                        // if (in.equals("y")) {
-                        // createAccount(terminal, lineReader);
-                        // } else {
-                        // terminal.writer().println("Aborting...");
-                        // terminal.writer().flush();
-                        // Thread.sleep(500);
-                        // }
-                        // }
+                        case CREATE -> {
+                            if (accounts.mkdir()) {
+                                String in = readInput(terminal, lineReader, "Create an account?(y/N) ");
+                                if (in.equals("y")) {
+                                    createAccount(terminal, lineReader);
+                                } else {
+                                    terminal.writer().println("Aborting...");
+                                    terminal.writer().flush();
+                                    Thread.sleep(500);
+                                }
+                            } else {
+                                String in = readInput(terminal, lineReader, "Create an account?(y/N) ");
+                                if (in.equals("y")) {
+                                    createAccount(terminal, lineReader);
+                                } else {
+                                    terminal.writer().println("Aborting...");
+                                    terminal.writer().flush();
+                                    Thread.sleep(500);
+                                }
+                            }
+
+                        }
 
                     }
                 }
@@ -116,6 +126,9 @@ public class Main {
         String name = readInput(terminal, lineReader, "Enter your name: ");
         String address = readInput(terminal, lineReader, "Enter your address: ");
         String type = readInput(terminal, lineReader, "Enter account type: (e)veryday, (s)avings, (c)urrent : ");
+        name = name.strip();
+        address = address.strip();
+        type = type.strip();
         int rand;
         int[] accountNumberArray = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
         for (int i = 0; i < 15; i++) {
@@ -139,8 +152,7 @@ public class Main {
             accountNumber += accountNumberArray[i + 7];
         }
         terminal.writer().println("Account created: " + accountNumber);
-       // accountsList.add(new File( accountNumber + ".txt"));
-        switch (type.toLowerCase().strip()) {
+        switch (type.toLowerCase()) {
             case "everyday", "e" -> {
                 type = "everyday";
             }
@@ -154,14 +166,17 @@ public class Main {
                 break;
             }
         }
-        File newAccount = new File("accounts/" + accountNumber + ".txt");
-        accountsList.add(newAccount);
+
+        File newAccount = new File("accounts/" + type + "_" + name.replaceAll(" ", "_") + "_" + accountNumber + ".txt");
+        updateAccounts();
         try (FileWriter accountWriter = new FileWriter(newAccount)) {
             accountWriter.write(name + ";" + address + ";" + accountNumber + ";" + type);
         } catch (Exception e) {
         }
+        updateAccounts();
         terminal.writer().println(accountsList);
         terminal.writer().flush();
+
         String in = readInput(terminal, lineReader, "Press enter to continue");
     }
 
@@ -172,6 +187,11 @@ public class Main {
             }
             f.delete();
         }
+    }
+
+    public static void updateAccounts() {
+        accountsList.clear();
+        accountsList.addAll(Arrays.asList(accounts.listFiles()));
     }
 
 }
