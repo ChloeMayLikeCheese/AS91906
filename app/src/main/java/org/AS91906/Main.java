@@ -26,7 +26,7 @@ public class Main {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        String topBar = "Open an account (o)\n";
+        String topBar = "Open an account (o) | Create an account (c)\n";
         accounts.mkdir();
         updateAccounts();
 
@@ -191,7 +191,8 @@ public class Main {
 
     public static void updateAccounts() {
         accountsList.clear();
-        accountsList.addAll(Arrays.asList(accounts.listFiles()));
+        File[] accountsArray = accounts.listFiles((dir, name) -> name.matches("^.*\\d{2}-\\d{4}-\\d{7}-\\d{2}.*$") && new File(dir, name).isFile());
+        accountsList.addAll(Arrays.asList(accountsArray));
     }
 
 }
