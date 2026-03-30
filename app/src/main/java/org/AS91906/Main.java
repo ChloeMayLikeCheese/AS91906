@@ -22,6 +22,7 @@ public class Main {
     enum Operation {
         OPEN,
         CREATE,
+        BACK,
         CLEAR_ACCOUNTS
     }
 
@@ -40,6 +41,7 @@ public class Main {
             keyMap.bind(Operation.OPEN, "o");
             keyMap.bind(Operation.CLEAR_ACCOUNTS, "C");
             keyMap.bind(Operation.CREATE, "c");
+            keyMap.bind(Operation.BACK, "\\033[D");
             LineReader lineReader = LineReaderBuilder.builder()
                     .terminal(terminal)
                     .build();
@@ -55,26 +57,60 @@ public class Main {
                 if (op != null) {
                     switch (op) {
                         case OPEN -> {
-                            if (!accountsList.isEmpty()) {
-                                terminal.writer().println("Accounts: \n" + accountsList);
-                                terminal.writer().flush();
-                                String in = readInput(terminal, lineReader, "Press enter to continue");
-                            } else {
-                                terminal.writer().println();
-                                String in = readInput(terminal, lineReader,
-                                        "No accounts available, would you like to create one?(y/N) ");
-                                if (in.equals("y")) {
-                                    createAccount(terminal, lineReader);
-                                } else {
-                                    terminal.writer().println("Aborting...");
+                            if (!accounts.mkdir()) {
+                                updateAccounts();
+                                if (!accountsList.isEmpty()) {
+                                    StringBuilder builder = new StringBuilder();
+                                    for (File value : accountsList) {
+                                        builder.append(value).append("\n");
+                                    }
+                                    String formattedAccountsList = builder.toString();
+                                    terminal.writer().println("Accounts: \n"
+                                            + formattedAccountsList.replace("accounts/", "").replace("_", " "));
                                     terminal.writer().flush();
-                                    Thread.sleep(500);
-                                }
+                                    String in = readInput(terminal, lineReader, "Press enter to continue");
+                                } else {
+                                    terminal.writer().println();
+                                    String in = readInput(terminal, lineReader,
+                                            "No accounts available, would you like to create one?(y/N) ");
+                                    if (in.equals("y")) {
+                                        createAccount(terminal, lineReader);
+                                    } else {
+                                        terminal.writer().println("Aborting...");
+                                        terminal.writer().flush();
+                                        Thread.sleep(500);
+                                    }
 
+                                }
+                            } else {
+                                if (!accountsList.isEmpty()) {
+                                    StringBuilder builder = new StringBuilder();
+                                    for (File value : accountsList) {
+                                        builder.append(value).append("\n");
+                                    }
+                                    String formattedAccountsList = builder.toString();
+                                    terminal.writer().println("Accounts: \n"
+                                            + formattedAccountsList.replace("accounts/", "").replace("_", " "));
+                                    terminal.writer().flush();
+                                    String in = readInput(terminal, lineReader, "Press enter to continue");
+                                } else {
+                                    terminal.writer().println();
+                                    String in = readInput(terminal, lineReader,
+                                            "No accounts available, would you like to create one?(y/N) ");
+                                    if (in.equals("y")) {
+                                        createAccount(terminal, lineReader);
+                                    } else {
+                                        terminal.writer().println("Aborting...");
+                                        terminal.writer().flush();
+                                        Thread.sleep(500);
+                                    }
+
+                                }
                             }
 
                         }
                         case CLEAR_ACCOUNTS -> {
+                            updateAccounts();
                             deleteDir(accounts);
                         }
                         case CREATE -> {
@@ -123,12 +159,17 @@ public class Main {
     }
 
     public static void createAccount(Terminal terminal, LineReader lineReader) throws InterruptedException {
-        String name = readInput(terminal, lineReader, "Enter your name: ");
+        String name = readInput(terminal, lineReader, "Enter your first and last name: ");
         String address = readInput(terminal, lineReader, "Enter your address: ");
         String type = readInput(terminal, lineReader, "Enter account type: (e)veryday, (s)avings, (c)urrent : ");
-        name = name.strip();
-        address = address.strip();
-        type = type.strip();
+        String[] nameArray = name.split(" ");
+        name = "";
+        for (int i = 0; i < nameArray.length; i++) {
+            char firstLetter = nameArray[i].charAt(0);
+            firstLetter = Character.toUpperCase(firstLetter);
+            String firstLetterString = "" + nameArray[i].charAt(0);
+            name += nameArray[i].replaceFirst(firstLetterString, "" + firstLetter) + " ";
+        }
         int rand;
         int[] accountNumberArray = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
         for (int i = 0; i < 15; i++) {
@@ -154,27 +195,31 @@ public class Main {
         terminal.writer().println("Account created: " + accountNumber);
         switch (type.toLowerCase()) {
             case "everyday", "e" -> {
-                type = "everyday";
+                type = "Everyday";
             }
             case "savings", "s" -> {
-                type = "savings";
+                type = "Savings";
             }
             case "current", "c" -> {
-                type = "current";
+                type = "Current";
             }
             default -> {
                 break;
             }
         }
 
-        File newAccount = new File("accounts/" + type + "_" + name.replaceAll(" ", "_") + "_" + accountNumber + ".txt");
+        File newAccount = new File("accounts/" + name.strip().replaceAll(" ", "_") + "_" + type + "_" + accountNumber);
         updateAccounts();
         try (FileWriter accountWriter = new FileWriter(newAccount)) {
             accountWriter.write(name + ";" + address + ";" + accountNumber + ";" + type);
         } catch (Exception e) {
         }
         updateAccounts();
-        terminal.writer().println(accountsList);
+        StringBuilder builder = new StringBuilder();
+        builder.append(newAccount);
+        String newAccountName = builder.toString();
+        terminal.writer().println("Account created: \n"
+                + newAccountName.replace("accounts/", "").replace("_", " "));
         terminal.writer().flush();
 
         String in = readInput(terminal, lineReader, "Press enter to continue");
@@ -191,7 +236,9 @@ public class Main {
 
     public static void updateAccounts() {
         accountsList.clear();
-        File[] accountsArray = accounts.listFiles((dir, name) -> name.matches("^.*\\d{2}-\\d{4}-\\d{7}-\\d{2}.*$") && new File(dir, name).isFile());
+        File[] accountsArray = accounts.listFiles(
+                (dir, name) -> name.matches("^.*\\d{2}-\\d{4}-\\d{7}-\\d{2}$") && new File(dir, name).isFile());
+        Arrays.sort(accountsArray);
         accountsList.addAll(Arrays.asList(accountsArray));
     }
 
