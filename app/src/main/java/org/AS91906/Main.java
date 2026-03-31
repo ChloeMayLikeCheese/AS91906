@@ -5,6 +5,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Scanner;
 
 import org.jline.keymap.BindingReader;
 import org.jline.keymap.KeyMap;
@@ -23,7 +24,6 @@ public class Main {
     enum Operation {
         OPEN,
         CREATE,
-        BACK,
         CLEAR_ACCOUNTS
     }
 
@@ -42,7 +42,6 @@ public class Main {
             keyMap.bind(Operation.OPEN, "o");
             keyMap.bind(Operation.CLEAR_ACCOUNTS, "C");
             keyMap.bind(Operation.CREATE, "c");
-            keyMap.bind(Operation.BACK, "\\033[D");
             LineReader lineReader = LineReaderBuilder.builder()
                     .terminal(terminal)
                     .build();
@@ -71,8 +70,8 @@ public class Main {
                                             + formattedAccountsList.replace("accounts/", "").replace("_", " "));
                                     terminal.writer().flush();
                                     String in = readInput(terminal, lineReader,
-                                            "What would you like to do? Delete account(d), Add balance(a), Withdraw balance(w), Press Enter to go back: ",
-                                            false, "[daw]", true);
+                                            "What would you like to do? Delete account(d), Add balance(a), Withdraw balance(w), Open account(o), Press Enter to go back: ",
+                                            false, "[dawo]", true);
                                     switch (in) {
                                         case "d" -> {
                                             int deletionSelect = Integer.parseInt(readInput(terminal, lineReader,
@@ -88,7 +87,35 @@ public class Main {
                                                 String deleteContinue = readInput(terminal, lineReader,
                                                         "Press enter  to continue", false, null, false);
                                             } else {
+                                                terminal.writer().println("Failed to delete account");
+                                                terminal.writer().flush();
+                                                String deleteFail = readInput(terminal, lineReader,
+                                                        "Press enter  to continue", false, null, false);
+                                            }
+                                        }
+                                        case "o" -> {
+                                            int openIndex = Integer.parseInt(readInput(terminal, lineReader,
+                                                    "Select the index of the account to open: ", true, "[0-9]",
+                                                    false));
+                                            try (Scanner accountReader = new Scanner(accountsList.get(openIndex))) {
+                                                while (accountReader.hasNextLine()) {
+                                                    String accountData = accountReader.nextLine();
+                                                    String[] accountDataArray = accountData.split(";");
+                                                    StringBuilder accountDataBuilder = new StringBuilder();
+                                                    accountDataBuilder.append("Name: ").append(accountDataArray[0])
+                                                            .append("\n").append("Address: ")
+                                                            .append(accountDataArray[1]).append("\n")
+                                                            .append("Account Number: ").append(accountDataArray[2])
+                                                            .append("\n").append("Account type: ")
+                                                            .append(accountDataArray[3]).append("\n");
 
+                                                    terminal.writer().println(accountDataBuilder.toString()
+                                                            .replace(",", "").replace("[", "").replace("]", ""));
+                                                    terminal.writer().flush();
+                                                    String openContinue = readInput(terminal, lineReader,
+                                                            "Press enter  to continue", false, null, false);
+                                                }
+                                            } catch (Exception e) {
                                             }
                                         }
 
@@ -136,7 +163,10 @@ public class Main {
                                                 String deleteContinue = readInput(terminal, lineReader,
                                                         "Press enter  to continue", false, null, false);
                                             } else {
-
+                                                terminal.writer().println("Failed to delete account");
+                                                terminal.writer().flush();
+                                                String deleteFail = readInput(terminal, lineReader,
+                                                        "Press enter  to continue", false, null, false);
                                             }
                                         }
 
