@@ -62,12 +62,9 @@ public class Main {
                                 updateAccounts();
                                 if (!accountsList.isEmpty()) {
                                     StringBuilder builder = new StringBuilder();
-                                    for (File value : accountsList) {
-                                        builder.append(value).append("\n");
-                                        for (int i = 0; i < accountsList.size(); i++) {
-                                            builder.insert(0, String.valueOf(i) + ". ");
-                                        }
-
+                                    for (int i = 0; i < accountsList.size(); i++) {
+                                        File value = accountsList.get(i);
+                                        builder.append(i).append(". ").append(value).append("\n");
                                     }
                                     String formattedAccountsList = builder.toString();
                                     terminal.writer().println("Accounts: \n"
@@ -92,12 +89,9 @@ public class Main {
                             } else {
                                 if (!accountsList.isEmpty()) {
                                     StringBuilder builder = new StringBuilder();
-                                    for (File value : accountsList) {
-                                        builder.append(value).append("\n");
-                                        for (int i = 0; i < accountsList.size(); i++) {
-                                            builder.insert(0, String.valueOf(i));
-                                        }
-
+                                    for (int i = 0; i < accountsList.size(); i++) {
+                                        File value = accountsList.get(i);
+                                        builder.append(i).append(". ").append(value).append("\n");
                                     }
                                     String formattedAccountsList = builder.toString();
                                     terminal.writer().println("Accounts: \n"
@@ -161,8 +155,8 @@ public class Main {
             throws InterruptedException {
 
         String in = null;
+        Widget originalSelfInsert = lineReader.getWidgets().get(LineReader.SELF_INSERT);
         if (restrict) {
-            Widget originalSelfInsert = lineReader.getWidgets().get(LineReader.SELF_INSERT);
             lineReader.getWidgets().put(LineReader.SELF_INSERT, () -> {
                 if (lineReader.getBuffer().length() == 0) {
                     String ch = lineReader.getLastBinding();
@@ -170,30 +164,23 @@ public class Main {
                         return originalSelfInsert.apply();
                     }
                 }
-
                 return true;
             });
-            try {
-                in = lineReader.readLine(prompt).strip();
-            } catch (UserInterruptException e) {
-                terminal.writer().flush();
-            }
-            if (in != null) {
-                return in;
-            } else {
-                return "";
-            }
         } else {
-            try {
-                in = lineReader.readLine(prompt).strip();
-            } catch (UserInterruptException e) {
-                terminal.writer().flush();
-            }
-            if (in != null) {
-                return in;
-            } else {
-                return "";
-            }
+            lineReader.getWidgets().put(LineReader.SELF_INSERT, originalSelfInsert);
+        }
+        try {
+            in = lineReader.readLine(prompt).strip();
+        } catch (UserInterruptException e) {
+            terminal.writer().flush();
+        } finally {
+            lineReader.getWidgets().put(LineReader.SELF_INSERT, originalSelfInsert);
+        }
+
+        if (in != null) {
+            return in;
+        } else {
+            return "";
         }
 
     }
