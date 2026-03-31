@@ -64,7 +64,7 @@ public class Main {
                                     StringBuilder builder = new StringBuilder();
                                     for (int i = 0; i < accountsList.size(); i++) {
                                         File value = accountsList.get(i);
-                                        builder.append(i).append(". ").append(value).append("\n");
+                                        builder.append(i).append(": ").append(value).append("\n");
                                     }
                                     String formattedAccountsList = builder.toString();
                                     terminal.writer().println("Accounts: \n"
@@ -72,11 +72,32 @@ public class Main {
                                     terminal.writer().flush();
                                     String in = readInput(terminal, lineReader,
                                             "What would you like to do? Delete account(d), Add balance(a), Withdraw balance(w), Press Enter to go back: ",
-                                            true, "[daw]");
+                                            false, "[daw]", true);
+                                    switch (in) {
+                                        case "d" -> {
+                                            int deletionSelect = Integer.parseInt(readInput(terminal, lineReader,
+                                                    "Select the index of the account to delete: ", true, "[0-9]",
+                                                    false));
+                                            if (accountsList.get(deletionSelect).delete()) {
+                                                StringBuilder deletedFile = new StringBuilder();
+                                                deletedFile.append(accountsList.get(deletionSelect));
+                                                String formattedDeletedFile = deletedFile.toString();
+                                                terminal.writer().println("Account deleted: " + formattedDeletedFile
+                                                        .replace("accounts/", "").replace("_", " "));
+                                                terminal.writer().flush();
+                                                String deleteContinue = readInput(terminal, lineReader,
+                                                        "Press enter  to continue", false, null, false);
+                                            } else {
+
+                                            }
+                                        }
+
+                                    }
                                 } else {
                                     terminal.writer().println();
                                     String in = readInput(terminal, lineReader,
-                                            "No accounts available, would you like to create one?(y/N) ", false, null);
+                                            "No accounts available, would you like to create one?(y/N) ", false, null,
+                                            false);
                                     if (in.equals("y")) {
                                         createAccount(terminal, lineReader);
                                     } else {
@@ -91,7 +112,7 @@ public class Main {
                                     StringBuilder builder = new StringBuilder();
                                     for (int i = 0; i < accountsList.size(); i++) {
                                         File value = accountsList.get(i);
-                                        builder.append(i).append(". ").append(value).append("\n");
+                                        builder.append(i).append(": ").append(value).append("\n");
                                     }
                                     String formattedAccountsList = builder.toString();
                                     terminal.writer().println("Accounts: \n"
@@ -99,11 +120,32 @@ public class Main {
                                     terminal.writer().flush();
                                     String in = readInput(terminal, lineReader,
                                             "What would you like to do? Delete account(d), Add balance(a), Withdraw balance(w), Press Enter to go back: ",
-                                            true, "[daw]");
+                                            false, "[daw]", true);
+                                    switch (in) {
+                                        case "d" -> {
+                                            int deletionSelect = Integer.parseInt(readInput(terminal, lineReader,
+                                                    "Select the index of the account to delete: ", true, "[0-9]",
+                                                    false));
+                                            if (accountsList.get(deletionSelect).delete()) {
+                                                StringBuilder deletedFile = new StringBuilder();
+                                                deletedFile.append(accountsList.get(deletionSelect));
+                                                String formattedDeletedFile = deletedFile.toString();
+                                                terminal.writer().println("Account deleted: " + formattedDeletedFile
+                                                        .replace("accounts/", "").replace("_", " "));
+                                                terminal.writer().flush();
+                                                String deleteContinue = readInput(terminal, lineReader,
+                                                        "Press enter  to continue", false, null, false);
+                                            } else {
+
+                                            }
+                                        }
+
+                                    }
                                 } else {
                                     terminal.writer().println();
                                     String in = readInput(terminal, lineReader,
-                                            "No accounts available, would you like to create one?(y/N) ", false, null);
+                                            "No accounts available, would you like to create one?(y/N) ", false, null,
+                                            false);
                                     if (in.equals("y")) {
                                         createAccount(terminal, lineReader);
                                     } else {
@@ -114,7 +156,6 @@ public class Main {
 
                                 }
                             }
-
                         }
                         case CLEAR_ACCOUNTS -> {
                             updateAccounts();
@@ -122,7 +163,8 @@ public class Main {
                         }
                         case CREATE -> {
                             if (accounts.mkdir()) {
-                                String in = readInput(terminal, lineReader, "Create an account?(y/N) ", false, null);
+                                String in = readInput(terminal, lineReader, "Create an account?(y/N) ", false, null,
+                                        false);
                                 if (in.equals("y")) {
                                     createAccount(terminal, lineReader);
                                 } else {
@@ -131,7 +173,8 @@ public class Main {
                                     Thread.sleep(500);
                                 }
                             } else {
-                                String in = readInput(terminal, lineReader, "Create an account?(y/N) ", false, null);
+                                String in = readInput(terminal, lineReader, "Create an account?(y/N) ", false, null,
+                                        false);
                                 if (in.equals("y")) {
                                     createAccount(terminal, lineReader);
                                 } else {
@@ -151,18 +194,26 @@ public class Main {
     }
 
     public static String readInput(Terminal terminal, LineReader lineReader, String prompt, boolean restrict,
-            String regex)
+            String regex, boolean singleDigit)
             throws InterruptedException {
 
         String in = null;
         Widget originalSelfInsert = lineReader.getWidgets().get(LineReader.SELF_INSERT);
-        if (restrict) {
+        if (singleDigit) {
             lineReader.getWidgets().put(LineReader.SELF_INSERT, () -> {
                 if (lineReader.getBuffer().length() == 0) {
                     String ch = lineReader.getLastBinding();
                     if (ch != null && ch.matches(regex)) {
                         return originalSelfInsert.apply();
                     }
+                }
+                return true;
+            });
+        } else if (restrict) {
+            lineReader.getWidgets().put(LineReader.SELF_INSERT, () -> {
+                String ch = lineReader.getLastBinding();
+                if (ch != null && ch.matches(regex)) {
+                    return originalSelfInsert.apply();
                 }
                 return true;
             });
@@ -186,14 +237,14 @@ public class Main {
     }
 
     public static void createAccount(Terminal terminal, LineReader lineReader) throws InterruptedException {
-        String name = readInput(terminal, lineReader, "Enter your first and last name: ", false, null);
+        String name = readInput(terminal, lineReader, "Enter your first and last name: ", false, null, false);
         if (name.equals("")) {
             terminal.writer().println("Aborting...");
             terminal.writer().flush();
             Thread.sleep(500);
             return;
         }
-        String address = readInput(terminal, lineReader, "Enter your address: ", false, null);
+        String address = readInput(terminal, lineReader, "Enter your address: ", false, null, false);
         if (address.equals("")) {
             terminal.writer().println("Aborting...");
             terminal.writer().flush();
@@ -201,8 +252,8 @@ public class Main {
             return;
         }
         String type = readInput(terminal, lineReader, "Enter account type: Everyday(e), Savings(s), current(c) : ",
-                true,
-                "[escESC]");
+                false,
+                "[escESC]", true);
         if (type.equals("")) {
             terminal.writer().println("Aborting...");
             terminal.writer().flush();
@@ -241,7 +292,6 @@ public class Main {
         for (int i = 0; i < 2; i++) {
             accountNumber += accountNumberArray[i + 7];
         }
-        terminal.writer().println("Account created: " + accountNumber);
         switch (type.toLowerCase()) {
             case "e" -> {
                 type = "Everyday";
@@ -265,10 +315,10 @@ public class Main {
         StringBuilder builder = new StringBuilder();
         builder.append(newAccount);
         String newAccountName = builder.toString();
-        terminal.writer().println("Account created: \n"
+        terminal.writer().println("Account created: "
                 + newAccountName.replace("accounts/", "").replace("_", " "));
         terminal.writer().flush();
-        String in = readInput(terminal, lineReader, "Press enter to continue", false, null);
+        String in = readInput(terminal, lineReader, "Press enter to continue", false, null, false);
     }
 
     public static void deleteDir(File f) {
