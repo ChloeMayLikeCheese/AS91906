@@ -28,7 +28,7 @@ public class Main {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        String topBar = "Open or edit an account (o) | Create an account (c)\n";
+        String topBar = "View or edit an account (v) | Create an account (c)\n";
         accounts.mkdir();
         updateAccounts();
 
@@ -39,7 +39,7 @@ public class Main {
             terminal.enterRawMode();
             BindingReader bindingReader = new BindingReader(terminal.reader());
             KeyMap<Operation> keyMap = new KeyMap<>();
-            keyMap.bind(Operation.OPEN, "o");
+            keyMap.bind(Operation.OPEN, "v");
             keyMap.bind(Operation.CLEAR_ACCOUNTS, "C");
             keyMap.bind(Operation.CREATE, "c");
             LineReader lineReader = LineReaderBuilder.builder()
@@ -72,21 +72,25 @@ public class Main {
                                         + formatFileName(formattedAccountsList));
                                 terminal.writer().flush();
                                 String in = readInput(terminal, lineReader,
-                                        "What would you like to do? Delete account(d), Add balance(a), Withdraw balance(w), Open account(o), Press Enter to go back: ",
-                                        false, "[dawo]", true);
-                                switch (in) {
+                                        "What would you like to do? Delete account(d), Edit balance(e), View account(v), Press Enter to go back: ",
+                                        false, "[devDEV]", true);
+                                switch (in.toLowerCase()) {
                                     case "d" -> {
-                                        int deletionSelect = Integer.parseInt(readInput(terminal, lineReader,
-                                                "Select the index of the account to delete: ", true, "[0-9]",
-                                                false));
+                                        int deletionSelect = selectIndex(terminal, lineReader,
+                                                "Select the index of the account to delete: ");
                                         deleteFile(terminal, lineReader, accountsList.get(deletionSelect));
                                     }
-                                    case "o" -> {
-                                        int openIndex = Integer.parseInt(readInput(terminal, lineReader,
-                                                "Select the index of the account to open: ", true, "[0-9]",
-                                                false));
-                                        openAccount(terminal, lineReader, accountsList.get(openIndex));
+                                    case "v" -> {
+                                        int openSelect = selectIndex(terminal, lineReader,
+                                                "Select the index of the account to open: ");
+                                        openAccount(terminal, lineReader, accountsList.get(openSelect));
+                                        readInput(terminal, lineReader, "Press enter  to continue", false, null, false);
 
+                                    }
+                                    case "e" -> {
+                                        int editSelect = selectIndex(terminal, lineReader,
+                                                "Select the index of the account to edit: ");
+                                        editBalance(terminal, lineReader, accountsList.get(editSelect));
                                     }
 
                                 }
@@ -151,9 +155,14 @@ public class Main {
         } else if (restrict) {
             lineReader.getWidgets().put(LineReader.SELF_INSERT, () -> {
                 String ch = lineReader.getLastBinding();
-                if (ch != null && ch.matches(regex)) {
-                    return originalSelfInsert.apply();
+                if (ch != null) {
+                    String current = lineReader.getBuffer().toString();
+                    String updated = current + ch;
+                    if (updated.matches(regex)) {
+                        return originalSelfInsert.apply();
+                    }
                 }
+
                 return true;
             });
         } else {
@@ -176,6 +185,7 @@ public class Main {
     }
 
     public static void createAccount(Terminal terminal, LineReader lineReader) throws InterruptedException {
+        double balance = 0.0;
         String name = readInput(terminal, lineReader, "Enter your first and last name: ", false, null, false);
         if (name.equals("")) {
             terminal.writer().println("Aborting...");
@@ -247,7 +257,7 @@ public class Main {
                 "accounts/" + name.strip().replaceAll(" ", "_") + "_" + type + "_" + accountNumber);
         updateAccounts();
         try (FileWriter accountWriter = new FileWriter(newAccount)) {
-            accountWriter.write(name + ";" + address + ";" + accountNumber + ";" + type);
+            accountWriter.write(name + ";" + address + ";" + accountNumber + ";" + type + ";" + balance);
         } catch (Exception e) {
         }
         updateAccounts();
@@ -257,15 +267,15 @@ public class Main {
         terminal.writer().println("Account created: "
                 + formatFileName(newAccountName));
         terminal.writer().flush();
-        String in = readInput(terminal, lineReader, "Press enter to continue", false, null, false);
+        readInput(terminal, lineReader, "Press enter to continue", false, null, false);
     }
 
-    public static void deleteDir(File f) {
-        if (f.isDirectory()) {
-            for (File c : f.listFiles()) {
+    public static void deleteDir(File file) {
+        if (file.isDirectory()) {
+            for (File c : file.listFiles()) {
                 c.delete();
             }
-            f.delete();
+            file.delete();
         }
     }
 
@@ -289,36 +299,84 @@ public class Main {
             terminal.writer().println(
                     "Account deleted: " + formatFileName(formattedDeletedFile));
             terminal.writer().flush();
-            String deleteContinue = readInput(terminal, lineReader,
-                    "Press enter  to continue", false, null, false);
+            readInput(terminal, lineReader, "Press enter  to continue", false, null, false);
         } else {
             terminal.writer().println("Failed to delete account");
             terminal.writer().flush();
-            String deleteFail = readInput(terminal, lineReader,
-                    "Press enter  to continue", false, null, false);
+            readInput(terminal, lineReader, "Press enter  to continue", false, null, false);
         }
+        updateAccounts();
     }
 
     public static void openAccount(Terminal terminal, LineReader lineReader, File file) {
         try (Scanner accountReader = new Scanner(file)) {
-            while (accountReader.hasNextLine()) {
-                String accountData = accountReader.nextLine();
-                String[] accountDataArray = accountData.split(";");
-                StringBuilder accountDataBuilder = new StringBuilder();
-                accountDataBuilder.append("Name: ").append(accountDataArray[0])
-                        .append("\n").append("Address: ")
-                        .append(accountDataArray[1]).append("\n")
-                        .append("Account Number: ").append(accountDataArray[2])
-                        .append("\n").append("Account type: ")
-                        .append(accountDataArray[3]).append("\n");
+            String accountData = accountReader.nextLine();
+            String[] accountDataArray = accountData.split(";");
+            StringBuilder accountDataBuilder = new StringBuilder();
+            accountDataBuilder.append("Name: ").append(accountDataArray[0])
+                    .append("\n").append("Address: ")
+                    .append(accountDataArray[1]).append("\n")
+                    .append("Account Number: ").append(accountDataArray[2])
+                    .append("\n").append("Account Type: ")
+                    .append(accountDataArray[3]).append("\n")
+                    .append("Account Balance: ").append("$").append(accountDataArray[4]).append("\n");
 
-                terminal.writer().println(accountDataBuilder.toString()
-                        .replace(",", "").replace("[", "").replace("]", ""));
-                terminal.writer().flush();
-                String openContinue = readInput(terminal, lineReader,
-                        "Press enter  to continue", false, null, false);
-            }
+            terminal.writer().println(accountDataBuilder.toString()
+                    .replace(",", "").replace("[", "").replace("]", ""));
+            terminal.writer().flush();
         } catch (Exception e) {
         }
+    }
+
+    public static void editBalance(Terminal terminal, LineReader lineReader, File account) throws InterruptedException {
+        updateAccounts();
+        openAccount(terminal, lineReader, account);
+        try (Scanner accountReader = new Scanner(account)) {
+            String accountData = accountReader.nextLine();
+            String[] accountDataArray = accountData.split(";");
+            double originalBalance = Double.parseDouble(accountDataArray[accountDataArray.length - 1]);
+            StringBuilder accountDataBuilder = new StringBuilder();
+            for (int i = 0; i < accountDataArray.length - 1; i++) {
+                accountDataBuilder.append(accountDataArray[i]).append(";");
+            }
+            accountData = accountDataBuilder.toString();
+            String addOrWithdraw = readInput(terminal, lineReader, "Add(a) or Withdraw(w) balance? ", true, "[awAW]",
+                    true);
+            try (FileWriter changeBalance = new FileWriter(account)) {
+                switch (addOrWithdraw.toLowerCase()) {
+                    case "a" -> {
+                        double newBalance = Double.parseDouble(readInput(terminal, lineReader,
+                                "Enter how much money to add: ", true, "\\d*\\.?\\d{0,2}", false));
+                        newBalance = originalBalance + newBalance;
+                        changeBalance.write(accountData + newBalance);
+                    }
+                    case "w" -> {
+                        double newBalance = Double.parseDouble(readInput(terminal, lineReader,
+                                "Enter how much money to withdraw: ", true, "\\d*\\.?\\d{0,2}", false));
+                        newBalance = originalBalance - newBalance;
+                        changeBalance.write(accountData + newBalance);
+                    }
+                    default -> changeBalance.write(accountData + originalBalance);
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.exit(0);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(0);
+        }
+
+    }
+
+    public static int selectIndex(Terminal terminal, LineReader lineReader, String prompt)
+            throws NumberFormatException, InterruptedException {
+        int selectedIndex = Integer.parseInt(readInput(terminal, lineReader, prompt, true, "\\d*", false));
+        if (selectedIndex == accountsList.size()) {
+            terminal.writer().println("Please enter a valid number");
+            selectIndex(terminal, lineReader, prompt);
+        }
+        return selectedIndex;
     }
 }
