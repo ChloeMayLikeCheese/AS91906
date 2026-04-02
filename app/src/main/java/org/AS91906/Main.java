@@ -96,9 +96,7 @@ public class Main {
                                 }
                             } else {
                                 terminal.writer().println();
-                                String in = readInput(terminal, lineReader,
-                                        "No accounts available, would you like to create one?(y/N) ", false, null,
-                                        false);
+                                String in = yesNo(terminal, lineReader, "No accounts available, create one?");
                                 if (in.equals("y")) {
                                     createAccount(terminal, lineReader);
                                 } else {
@@ -117,8 +115,7 @@ public class Main {
                             if (!accounts.exists()) {
                                 accounts.mkdir();
                             }
-                            String in = readInput(terminal, lineReader, "Create an account?(y/N) ", false, null,
-                                    false);
+                            String in = yesNo(terminal, lineReader, "Create an account?");
                             if (in.equals("y")) {
                                 createAccount(terminal, lineReader);
                             } else {
@@ -378,5 +375,10 @@ public class Main {
             selectIndex(terminal, lineReader, prompt);
         }
         return selectedIndex;
+    }
+
+    public static String yesNo(Terminal terminal, LineReader lineReader, String prompt) throws InterruptedException {
+        String in = readInput(terminal, lineReader,prompt + "(y/n): ", true, "[ynYN]",true);
+        return in;
     }
 }
