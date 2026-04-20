@@ -144,7 +144,8 @@ public class Main {
                             }
 
                             terminal.writer().println("Day ended.\nNet deposits for today: $" + dailyNetDeposits
-                                    + "\nNet withdraws for today: $" + dailyNetWithdraws + "\nTotal money in accounts: $"
+                                    + "\nNet withdraws for today: $" + dailyNetWithdraws
+                                    + "\nTotal money in accounts: $"
                                     + total);
                             terminal.writer().flush();
                             Thread.sleep(500);
@@ -367,18 +368,36 @@ public class Main {
             try (FileWriter changeBalance = new FileWriter(account)) {
                 switch (depositOrWithdraw.toLowerCase()) {
                     case "d" -> {
-                        double newBalance = Double.parseDouble(readInput(terminal, lineReader,
+                        double depositAmmount = Double.parseDouble(readInput(terminal, lineReader,
                                 "Enter how much money to deposit: ", true, "\\d*\\.?\\d{0,2}", false));
-                        dailyNetDeposits += newBalance;
-                        newBalance = originalBalance + newBalance;
+                        double newBalance = originalBalance + depositAmmount;
+                        dailyNetDeposits += depositAmmount;
                         changeBalance.write(accountData + newBalance);
 
                     }
                     case "w" -> {
-                        double newBalance = Double.parseDouble(readInput(terminal, lineReader,
-                                "Enter how much money to withdraw: ", true, "\\d*\\.?\\d{0,2}", false));
-                        dailyNetWithdraws += newBalance;
-                        newBalance = originalBalance - newBalance;
+                        double withdrawAmount = Double.parseDouble(readInput(terminal, lineReader,
+                                "Enter how much money to withdraw(Up to $5000, Overdraft only available for 'current' accounts, limit of $1000): ",
+                                true,
+                                "^(?:[0-4]?\\d{1,3}(?:\\.\\d{0,2})?|5000(?:\\.0{0,2})?)$", false));
+                        double newBalance = originalBalance - withdrawAmount;
+                        if (!accountDataArray[accountDataArray.length - 2].equals("Current") && newBalance < 0) {
+                            terminal.writer().println("Overdraft is only available for 'current' accounts");
+                            changeBalance.write(accountData + originalBalance);
+                            terminal.writer().flush();
+                            Thread.sleep(500);
+                            return;
+                        } else {
+                            if (newBalance < -1000) {
+                                terminal.writer().println("Overdraft limit reached");
+                                changeBalance.write(accountData + originalBalance);
+                                terminal.writer().flush();
+                                Thread.sleep(500);
+                                return;
+                            }
+                        }
+
+                        dailyNetWithdraws += withdrawAmount;
                         changeBalance.write(accountData + newBalance);
                     }
                     default -> changeBalance.write(accountData + originalBalance);
