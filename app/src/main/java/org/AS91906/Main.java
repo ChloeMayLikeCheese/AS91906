@@ -20,15 +20,19 @@ import org.jline.utils.InfoCmp.Capability;
 public class Main {
     static ArrayList<File> accountsList = new ArrayList<>();
     static File accounts = new File("accounts/");
+    static double total = 0;
+    static double dailyNetDeposits = 0;
+    static double dailyNetWithdraws = 0;
 
     enum Operation {
         OPEN,
         CREATE,
-        CLEAR_ACCOUNTS
+        CLEAR_ACCOUNTS,
+        END_DAY
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        String ui = " _____________________________ \n| View or edit an account (v) |\n| Create an account (c)       |\n _____________________________ ";
+        String ui = " _____________________________ \n| View or edit an account (v) |\n| Create an account (c)       |\n| End day/quit (e/q)          |\n _____________________________ ";
         accounts.mkdir();
         updateAccounts();
 
@@ -42,6 +46,7 @@ public class Main {
             keyMap.bind(Operation.OPEN, "v");
             keyMap.bind(Operation.CLEAR_ACCOUNTS, "C");
             keyMap.bind(Operation.CREATE, "c");
+            keyMap.bind(Operation.END_DAY, "e", "q");
             LineReader lineReader = LineReaderBuilder.builder()
                     .terminal(terminal)
                     .build();
@@ -124,6 +129,25 @@ public class Main {
                                 Thread.sleep(500);
                             }
 
+                        }
+                        case END_DAY -> {
+                            total = 0;
+                            for (int i = 0; i < accountsList.size(); i++) {
+                                File currentAccount = accountsList.get(i);
+                                try (Scanner accountReader = new Scanner(currentAccount)) {
+                                    String accountData = accountReader.nextLine();
+                                    String[] accountDataArray = accountData.split(";");
+                                    double currentBalance = Double
+                                            .parseDouble(accountDataArray[accountDataArray.length - 1]);
+                                    total += currentBalance;
+                                }
+                            }
+
+                            terminal.writer().println("Day ended.\nNet deposits for today: $" + dailyNetDeposits
+                                    + "\nNet withdraws for today: $" + dailyNetWithdraws + "\nTotal money in accounts: $"
+                                    + total);
+                            terminal.writer().flush();
+                            Thread.sleep(500);
                         }
 
                     }
@@ -337,19 +361,23 @@ public class Main {
                 accountDataBuilder.append(accountDataArray[i]).append(";");
             }
             accountData = accountDataBuilder.toString();
-            String addOrWithdraw = readInput(terminal, lineReader, "Add(a) or Withdraw(w) balance? ", true, "[awAW]",
+            String depositOrWithdraw = readInput(terminal, lineReader, "Deposit(d) or Withdraw(w) balance? ", true,
+                    "[dwDW]",
                     true);
             try (FileWriter changeBalance = new FileWriter(account)) {
-                switch (addOrWithdraw.toLowerCase()) {
-                    case "a" -> {
+                switch (depositOrWithdraw.toLowerCase()) {
+                    case "d" -> {
                         double newBalance = Double.parseDouble(readInput(terminal, lineReader,
-                                "Enter how much money to add: ", true, "\\d*\\.?\\d{0,2}", false));
+                                "Enter how much money to deposit: ", true, "\\d*\\.?\\d{0,2}", false));
+                        dailyNetDeposits += newBalance;
                         newBalance = originalBalance + newBalance;
                         changeBalance.write(accountData + newBalance);
+
                     }
                     case "w" -> {
                         double newBalance = Double.parseDouble(readInput(terminal, lineReader,
                                 "Enter how much money to withdraw: ", true, "\\d*\\.?\\d{0,2}", false));
+                        dailyNetWithdraws += newBalance;
                         newBalance = originalBalance - newBalance;
                         changeBalance.write(accountData + newBalance);
                     }
@@ -378,7 +406,8 @@ public class Main {
     }
 
     public static String yesNo(Terminal terminal, LineReader lineReader, String prompt) throws InterruptedException {
-        String in = readInput(terminal, lineReader,prompt + "(y/n): ", true, "[ynYN]",true);
+        String in = readInput(terminal, lineReader, prompt + "(y/n): ", true, "[ynYN]", true);
         return in;
     }
+
 }
