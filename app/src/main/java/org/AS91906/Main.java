@@ -28,7 +28,7 @@ public class Main {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        String topBar = "View or edit an account (v) | Create an account (c)\n";
+        String ui = " _____________________________ \n| View or edit an account (v) |\n| Create an account (c)       |\n _____________________________ ";
         accounts.mkdir();
         updateAccounts();
 
@@ -46,12 +46,12 @@ public class Main {
                     .terminal(terminal)
                     .build();
             terminal.puts(Capability.clear_screen);
-            terminal.writer().println(topBar);
+            terminal.writer().println(ui);
             terminal.writer().flush();
 
             while (true) {
                 terminal.puts(Capability.clear_screen);
-                terminal.writer().println(topBar);
+                terminal.writer().println(ui);
                 terminal.writer().flush();
                 Operation op = bindingReader.readBinding(keyMap, null, false);
                 if (op != null) {
