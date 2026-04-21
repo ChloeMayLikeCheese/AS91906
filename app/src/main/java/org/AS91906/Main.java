@@ -1,6 +1,7 @@
 package org.AS91906;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -18,7 +19,7 @@ import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.InfoCmp.Capability;
 
 public class Main {
-    static ArrayList<File> accountsList = new ArrayList<>();
+    static ArrayList<Account> accountsList = new ArrayList<>();
     static File accounts = new File("accounts/");
     static double total = 0;
     static double dailyNetDeposits = 0;
@@ -69,8 +70,8 @@ public class Main {
                             if (!accountsList.isEmpty()) {
                                 StringBuilder builder = new StringBuilder();
                                 for (int i = 0; i < accountsList.size(); i++) {
-                                    File value = accountsList.get(i);
-                                    builder.append(i).append(": ").append(value).append("\n");
+                                    Account acc = accountsList.get(i);
+                                    builder.append(i).append(": ").append(acc.getFileRef().getName()).append("\n");
                                 }
                                 String formattedAccountsList = builder.toString();
                                 terminal.writer().println("Accounts: \n"
@@ -132,15 +133,8 @@ public class Main {
                         }
                         case END_DAY -> {
                             total = 0;
-                            for (int i = 0; i < accountsList.size(); i++) {
-                                File currentAccount = accountsList.get(i);
-                                try (Scanner accountReader = new Scanner(currentAccount)) {
-                                    String accountData = accountReader.nextLine();
-                                    String[] accountDataArray = accountData.split(";");
-                                    double currentBalance = Double
-                                            .parseDouble(accountDataArray[accountDataArray.length - 1]);
-                                    total += currentBalance;
-                                }
+                            for (Account account : accountsList) {
+                                total += account.getBalance();
                             }
 
                             terminal.writer().println("Day ended.\nNet deposits for today: $" + dailyNetDeposits
@@ -206,7 +200,8 @@ public class Main {
 
     }
 
-    public static void createAccount(Terminal terminal, LineReader lineReader) throws InterruptedException {
+    public static void createAccount(Terminal terminal, LineReader lineReader)
+            throws InterruptedException, FileNotFoundException {
         double balance = 0.0;
         String name = readInput(terminal, lineReader, "Enter your first and last name: ", false, null, false);
         if (name.equals("")) {
@@ -301,19 +296,30 @@ public class Main {
         }
     }
 
-    public static void updateAccounts() {
+    public static void updateAccounts() throws FileNotFoundException {
         accountsList.clear();
         File[] accountsArray = accounts.listFiles(
                 (dir, name) -> name.matches("^.*\\d{2}-\\d{4}-\\d{7}-\\d{2}$") && new File(dir, name).isFile());
         Arrays.sort(accountsArray);
-        accountsList.addAll(Arrays.asList(accountsArray));
+        if (accountsArray != null) {
+            Arrays.sort(accountsArray);
+            for (File file : accountsArray) {
+                try (Scanner accountReader = new Scanner(file)) {
+                    if (accountReader.hasNextLine()) {
+                        accountsList.add(new Account(accountReader.nextLine(), file));
+                    }
+                }
+            }
+        }
     }
 
     public static String formatFileName(String file) {
         return file.replace("accounts/", "").replace("_", " ");
     }
 
-    public static void deleteFile(Terminal terminal, LineReader lineReader, File file) throws InterruptedException {
+    public static void deleteFile(Terminal terminal, LineReader lineReader, Account account)
+            throws InterruptedException, FileNotFoundException {
+        File file = account.getFileRef();
         if (file.delete()) {
             StringBuilder deletedFile = new StringBuilder();
             deletedFile.append(file);
@@ -330,87 +336,52 @@ public class Main {
         updateAccounts();
     }
 
-    public static void openAccount(Terminal terminal, LineReader lineReader, File file) {
-        try (Scanner accountReader = new Scanner(file)) {
-            String accountData = accountReader.nextLine();
-            String[] accountDataArray = accountData.split(";");
-            StringBuilder accountDataBuilder = new StringBuilder();
-            accountDataBuilder.append("Name: ").append(accountDataArray[0])
-                    .append("\n").append("Address: ")
-                    .append(accountDataArray[1]).append("\n")
-                    .append("Account Number: ").append(accountDataArray[2])
-                    .append("\n").append("Account Type: ")
-                    .append(accountDataArray[3]).append("\n")
-                    .append("Account Balance: ").append("$").append(accountDataArray[4]).append("\n");
-
-            terminal.writer().println(accountDataBuilder.toString()
-                    .replace(",", "").replace("[", "").replace("]", ""));
-            terminal.writer().flush();
-        } catch (Exception e) {
-        }
+    public static void openAccount(Terminal terminal, LineReader lineReader, Account account) {
+        terminal.writer().println(account.displayFormat());
+        terminal.writer().flush();
     }
 
-    public static void editBalance(Terminal terminal, LineReader lineReader, File account) throws InterruptedException {
-        updateAccounts();
+    public static void editBalance(Terminal terminal, LineReader lineReader, Account account)
+            throws InterruptedException, IOException {
         openAccount(terminal, lineReader, account);
-        try (Scanner accountReader = new Scanner(account)) {
-            String accountData = accountReader.nextLine();
-            String[] accountDataArray = accountData.split(";");
-            double originalBalance = Double.parseDouble(accountDataArray[accountDataArray.length - 1]);
-            StringBuilder accountDataBuilder = new StringBuilder();
-            for (int i = 0; i < accountDataArray.length - 1; i++) {
-                accountDataBuilder.append(accountDataArray[i]).append(";");
+
+        String depositOrWithdraw = readInput(terminal, lineReader, "Deposit(d) or Withdraw(w) balance? ", true,
+                "[dwDW]", true);
+
+        switch (depositOrWithdraw.toLowerCase()) {
+            case "d" -> {
+                double depositAmount = Double.parseDouble(readInput(terminal, lineReader,
+                        "Enter how much money to deposit: ", true, "\\d*\\.?\\d{0,2}", false));
+                account.deposit(depositAmount);
+                dailyNetDeposits += depositAmount;
             }
-            accountData = accountDataBuilder.toString();
-            String depositOrWithdraw = readInput(terminal, lineReader, "Deposit(d) or Withdraw(w) balance? ", true,
-                    "[dwDW]",
-                    true);
-            try (FileWriter changeBalance = new FileWriter(account)) {
-                switch (depositOrWithdraw.toLowerCase()) {
-                    case "d" -> {
-                        double depositAmmount = Double.parseDouble(readInput(terminal, lineReader,
-                                "Enter how much money to deposit: ", true, "\\d*\\.?\\d{0,2}", false));
-                        double newBalance = originalBalance + depositAmmount;
-                        dailyNetDeposits += depositAmmount;
-                        changeBalance.write(accountData + newBalance);
-
-                    }
-                    case "w" -> {
-                        double withdrawAmount = Double.parseDouble(readInput(terminal, lineReader,
-                                "Enter how much money to withdraw(Up to $5000, Overdraft only available for 'current' accounts, limit of $1000): ",
-                                true,
-                                "^(?:[0-4]?\\d{1,3}(?:\\.\\d{0,2})?|5000(?:\\.0{0,2})?)$", false));
-                        double newBalance = originalBalance - withdrawAmount;
-                        if (!accountDataArray[accountDataArray.length - 2].equals("Current") && newBalance < 0) {
-                            terminal.writer().println("Overdraft is only available for 'current' accounts");
-                            changeBalance.write(accountData + originalBalance);
-                            terminal.writer().flush();
-                            Thread.sleep(500);
-                            return;
-                        } else {
-                            if (newBalance < -1000) {
-                                terminal.writer().println("Overdraft limit reached");
-                                changeBalance.write(accountData + originalBalance);
-                                terminal.writer().flush();
-                                Thread.sleep(500);
-                                return;
-                            }
-                        }
-
-                        dailyNetWithdraws += withdrawAmount;
-                        changeBalance.write(accountData + newBalance);
-                    }
-                    default -> changeBalance.write(accountData + originalBalance);
-                }
-
-            } catch (Exception e) {
-                e.printStackTrace();
-                System.exit(0);
+            case "w" -> {
+                double withdrawAmount = Double.parseDouble(readInput(terminal, lineReader,
+                        "Enter how much money to withdraw(Up to $5000, Overdraft only available for 'current' accounts, limit of $1000): ",
+                        true, "^(?:[0-4]?\\d{1,3}(?:\\.\\d{0,2})?|5000(?:\\.0{0,2})?)$", false));
+                double newBalance = account.getBalance() - withdrawAmount;
+                if (!account.getType().equalsIgnoreCase("Current") && newBalance < 0) {
+                    terminal.writer().println("Failed to withdraw: Overdraft is only available for 'current' accounts");
+                    terminal.writer().flush();
+                    Thread.sleep(500);
+                    return;
+                } else if (newBalance < -1000) {
+                    terminal.writer().println("Failed to withdraw: Overdraft limit reached");
+                    terminal.writer().flush();
+                    Thread.sleep(500);
+                    return;
+                } else {    
+                    account.withdraw(withdrawAmount);
+                    dailyNetWithdraws += withdrawAmount;
+                }     
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.exit(0);
+
         }
+        try (FileWriter changeBalance = new FileWriter(account.getFileRef())) {
+            changeBalance.write(account.toFileString());
+        }
+
+        updateAccounts();
 
     }
 
