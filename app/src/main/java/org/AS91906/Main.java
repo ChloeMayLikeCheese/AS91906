@@ -24,6 +24,8 @@ public class Main {
     static double total = 0;
     static double dailyNetDeposits = 0;
     static double dailyNetWithdraws = 0;
+    static final int MAX_WITHDRAWL_AMOUNT = 5000;
+    static final int OVERDRAFT_LIMIT = -1000;
 
     enum Operation {
         OPEN,
@@ -394,14 +396,14 @@ public class Main {
             case "w" -> {
                 double withdrawAmount = Double.parseDouble(readInput(terminal, lineReader,
                         "Enter how much money to withdraw(Up to $5000, Overdraft only available for 'current' accounts, limit of $1000): ",
-                        true, "^(?:[0-4]?\\d{1,3}(?:\\.\\d{0,2})?|5000(?:\\.0{0,2})?)$", false));
+                        true, "^(?:[0-4]?\\d{1,3}(?:\\.\\d{0,2})?|"+MAX_WITHDRAWL_AMOUNT+"(?:\\.0{0,2})?)$", false));
                 double newBalance = account.getBalance() - withdrawAmount;
                 if (!account.getType().equals("Current") && newBalance < 0) {
                     terminal.writer().println("Failed to withdraw: Overdraft is only available for 'current' accounts");
                     terminal.writer().flush();
                     Thread.sleep(500);
                     return;
-                } else if (newBalance < -1000) {
+                } else if (newBalance < OVERDRAFT_LIMIT) {
                     terminal.writer().println("Failed to withdraw: Overdraft limit reached");
                     terminal.writer().flush();
                     Thread.sleep(500);
